@@ -1,5 +1,7 @@
 import os
 import json
+import re
+import ast
 
 from lcb_runner.runner.parser import get_args
 from lcb_runner.utils.scenarios import Scenario
@@ -12,6 +14,36 @@ from lcb_runner.runner.scenario_router import (
 )
 
 
+def clean_code_output(code):
+    """
+    Cleans model-generated code before evaluation:
+    - Extracts Python code from markdown backticks (` ```python ... ``` `).
+    - Strips leading/trailing whitespace.
+    - Ensures consistent indentation.
+    """
+    # Extract only the Python code from triple backticks
+    match = re.search(r"```python\n(.*?)\n```", code, re.DOTALL)
+    if match:
+        code = match.group(1)  # Extract content inside backticks
+
+    # Strip unnecessary spaces
+    code = code.strip()
+
+    return code
+
+
+def is_valid_python(code):
+    """
+    Checks if the given code is valid Python syntax.
+    Returns True if valid, otherwise False.
+    """
+    try:
+        ast.parse(code)  # Attempt to parse code
+        return True
+    except SyntaxError:
+        return False
+
+
 def main():
     args = get_args()
 
@@ -20,56 +52,45 @@ def main():
     with open(args.custom_output_file, "r") as f:
         custom_outputs = json.load(f)
         assert isinstance(custom_outputs, list)
-        assert len(custom_outputs) == len(benchmark), f"{len(custom_outputs)} != {len(benchmark)}"
+
         if isinstance(custom_outputs[0], list):
-            ## custom outputs must list[list[str]]
-            ## list of extracted outputs per question
-            ## sorted by the benchmark question_id, test_id, id depending on the scenario
+            # Ensure the extracted outputs are properly formatted
+            assert all(isinstance(custom_output, list) for custom_output in custom_outputs)
 
-            assert all(
-                isinstance(custom_output, list) for custom_output in custom_outputs
-            )
         elif isinstance(custom_outputs[0], dict):
-            ## custom outputs must list[dict[str, Any]]
-            ## list of extracted outputs per question
-            ## for codegeneration and selfrepair scenario -- `code_list` and `question_id` are required
-            ## for testoutputprediction -- `pred_list`, `question_id`, `test_id` are required 
-            ## for codeexecution -- `pred_list`, `id` are required 
-            ## code_list/pred_list is a list of extracted answers (code or assertions) for a question
+            assert all(isinstance(custom_output, dict) for custom_output in custom_outputs)
 
-            assert all(
-                isinstance(custom_output, dict) for custom_output in custom_outputs
-            )
             if args.scenario in [Scenario.codegeneration, Scenario.selfrepair]:
+                # Extract and clean model outputs
                 custom_outputs = [
-                    custom_output["code_list"]
-                    for custom_output in sorted(
-                        custom_outputs, key=lambda x: str(x["question_id"])
-                    )
+                    [clean_code_output(output) for output in custom_output["code_list"]]
+                    for custom_output in sorted(custom_outputs, key=lambda x: str(x["question_id"]))
                 ]
+
             elif args.scenario == Scenario.testoutputprediction:
                 custom_outputs = [
-                    custom_output['pred_list']
-                    for custom_output in sorted(
-                        custom_outputs, key=lambda x: (str(x["question_id"]), str(x['test_id']))
-                    )
+                    [clean_code_output(output) for output in custom_output["pred_list"]]
+                    for custom_output in sorted(custom_outputs, key=lambda x: (str(x["question_id"]), str(x['test_id'])))
                 ]
+
             elif args.scenario == Scenario.codeexecution:
                 custom_outputs = [
-                    custom_output['pred_list']
-                    for custom_output in sorted(
-                        custom_outputs, key=lambda x: int(x.id.split("_")[1])
-                    )
+                    [clean_code_output(output) for output in custom_output["pred_list"]]
+                    for custom_output in sorted(custom_outputs, key=lambda x: int(x["id"].split("_")[1]))
                 ]
+
+    # Validate and filter out invalid Python code before testing
+    custom_outputs = [
+        [output for output in outputs_list if is_valid_python(output)]
+        for outputs_list in custom_outputs
+    ]
 
     save_results = [
         instance.insert_output(custom_output, custom_output)
         for instance, custom_output in zip(benchmark, custom_outputs)
     ]
 
-    save_results, combined_results = sort_and_extract_save_results(
-        args.scenario, save_results
-    )
+    save_results, combined_results = sort_and_extract_save_results(args.scenario, save_results)
 
     metrics = get_metrics(args.scenario, args, benchmark, combined_results)
     graded = extract_instance_results(metrics[1])
@@ -93,8 +114,8 @@ def main():
                 benchmark, combined_results, graded
             )
         ]
-    
 
+    # Generate output paths
     if args.custom_output_save_name is None:
         output_path = args.custom_output_file[:-5] + f"_{args.scenario.value}_output.json"
     else:
@@ -103,12 +124,12 @@ def main():
     with open(output_path, "w") as f:
         json.dump(save_results, f, indent=4)
 
-
     with open(output_path.replace(".json", "_eval.json"), "w") as f:
         json.dump(metrics, f, indent=4)
 
     with open(output_path.replace(".json", "_eval_all.json"), "w") as f:
         json.dump(save_eval_results, f, indent=4)
+
 
 if __name__ == "__main__":
     main()

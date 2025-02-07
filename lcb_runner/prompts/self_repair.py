@@ -36,7 +36,7 @@ def get_check_prompt(question: str, result, metadata):
     ## assumes i/o examples are already truncated!
     ## less pressure on storing 10 MB json because on a single large input-output pair
     # result_by_test_case = result
-    # assert len(metadata) == 1, f"metadata = {metadata}"
+    assert len(metadata) == 1, f"metadata = {metadata}"
     # metadata = metadata[0]
     metadata = json.loads(metadata)
     if "error_code" not in metadata:

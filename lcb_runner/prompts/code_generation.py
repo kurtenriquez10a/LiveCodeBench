@@ -129,12 +129,20 @@ def get_codeqwen_question_template_answer(question: CodeGenerationProblem):
     prompt += f"<|im_start|>assistant\n"
     return prompt
 
+# needed to change these paths, since it is not reflective of the current directory pathsDEBUGGING
+try:
+    with open("./LiveCodeBench/lcb_runner/prompts/few_shot_examples/generation/func.json") as f:
+        func = json.load(f)
+except Exception as e:
+    print(f"Error loading func.json: {e}. Try checking the path")
+    func = None
 
-with open("lcb_runner/prompts/few_shot_examples/generation/func.json") as f:
-    func = json.load(f)
-
-with open("lcb_runner/prompts/few_shot_examples/generation/stdin.json") as f:
-    stdin = json.load(f)
+try:
+    with open("./LiveCodeBench/lcb_runner/prompts/few_shot_examples/generation/func.json") as f:
+        stdin = json.load(f)
+except Exception as e:
+    print(f"Error loading stdin.json: {e}. Try checking the path")
+    stdin = None
 
 
 def get_base_model_question_template_answer(question: CodeGenerationProblem):

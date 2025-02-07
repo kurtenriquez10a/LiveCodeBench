@@ -1,4 +1,4 @@
-from typing import Union
+from typing import Union, List, Callable, Tuple
 
 from lcb_runner.utils.scenarios import Scenario
 from lcb_runner.lm_styles import LanguageModel
@@ -39,11 +39,9 @@ BenchMarkType = list[
 
 def build_prompt_benchmark(
     args,
-) -> tuple[
-    list[CodeExecutionProblem]
-    | list[CodeGenerationProblem]
-    | list[TestOutputPredictionProblem],
-    callable,
+) -> Tuple[
+    Union[List[CodeExecutionProblem], List[CodeGenerationProblem], List[TestOutputPredictionProblem]],
+    Callable,
 ]:
     scenario: Scenario = args.scenario
 
@@ -176,9 +174,7 @@ def sort_and_extract_save_results(scenario: Scenario, save_results: list[dict]):
 def get_metrics(
     scenario: Scenario,
     args,
-    benchmark: list[
-        CodeGenerationProblem | CodeExecutionProblem | TestOutputPredictionProblem
-    ],
+    benchmark: List[Union[CodeGenerationProblem, CodeExecutionProblem, TestOutputPredictionProblem]],
     combined_results,
 ):
     eval_samples = [instance.get_evaluation_sample() for instance in benchmark]
