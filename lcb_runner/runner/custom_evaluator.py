@@ -2,6 +2,7 @@ import os
 import json
 import re
 import ast
+from typing import List, Union
 
 from lcb_runner.runner.parser import get_args
 from lcb_runner.utils.scenarios import Scenario
@@ -14,25 +15,22 @@ from lcb_runner.runner.scenario_router import (
 )
 
 
-def clean_code_output(code):
+def clean_code_output(code: str) -> str:
     """
     Cleans model-generated code before evaluation:
     - Extracts Python code from markdown backticks (` ```python ... ``` `).
     - Strips leading/trailing whitespace.
     - Ensures consistent indentation.
     """
-    # Extract only the Python code from triple backticks
+    # Extract only the Python code from markdown-style output
     match = re.search(r"```python\n(.*?)\n```", code, re.DOTALL)
     if match:
         code = match.group(1)  # Extract content inside backticks
 
-    # Strip unnecessary spaces
-    code = code.strip()
-
-    return code
+    return code.strip()
 
 
-def is_valid_python(code):
+def is_valid_python(code: str) -> bool:
     """
     Checks if the given code is valid Python syntax.
     Returns True if valid, otherwise False.
@@ -54,14 +52,12 @@ def main():
         assert isinstance(custom_outputs, list)
 
         if isinstance(custom_outputs[0], list):
-            # Ensure the extracted outputs are properly formatted
             assert all(isinstance(custom_output, list) for custom_output in custom_outputs)
 
         elif isinstance(custom_outputs[0], dict):
             assert all(isinstance(custom_output, dict) for custom_output in custom_outputs)
 
             if args.scenario in [Scenario.codegeneration, Scenario.selfrepair]:
-                # Extract and clean model outputs
                 custom_outputs = [
                     [clean_code_output(output) for output in custom_output["code_list"]]
                     for custom_output in sorted(custom_outputs, key=lambda x: str(x["question_id"]))
