@@ -1,4 +1,5 @@
 import json
+import os
 
 try:
     from anthropic import HUMAN_PROMPT, AI_PROMPT
@@ -129,20 +130,28 @@ def get_codeqwen_question_template_answer(question: CodeGenerationProblem):
     prompt += f"<|im_start|>assistant\n"
     return prompt
 
-# needed to change these paths, since it is not reflective of the current directory pathsDEBUGGING
+# Get the directory of the current script
+current_dir = os.path.dirname(os.path.abspath(__file__))
+
+# Construct the path to the JSON files
+func_json_path = os.path.join(current_dir, "few_shot_examples", "generation", "func.json")
+stdin_json_path = os.path.join(current_dir, "few_shot_examples", "generation", "stdin.json")
+
+# Load the JSON files
 try:
-    with open("./LiveCodeBench/lcb_runner/prompts/few_shot_examples/generation/func.json") as f:
+    with open(func_json_path) as f:
         func = json.load(f)
 except Exception as e:
     print(f"Error loading func.json: {e}. Try checking the path")
     func = None
 
 try:
-    with open("./LiveCodeBench/lcb_runner/prompts/few_shot_examples/generation/func.json") as f:
+    with open(stdin_json_path) as f:
         stdin = json.load(f)
 except Exception as e:
     print(f"Error loading stdin.json: {e}. Try checking the path")
     stdin = None
+
 
 
 def get_base_model_question_template_answer(question: CodeGenerationProblem):
